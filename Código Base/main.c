@@ -13,6 +13,8 @@
 
 int executeCommand(int command);
 char * removeSubStr(char * str,char * substr);
+int executeCommandFILE(int command);
+void removeChar(char *str, char c);
 
 int main(int argc, char *argv[]) {
   unsigned int state_access_delay_ms = STATE_ACCESS_DELAY_MS;
@@ -39,6 +41,7 @@ int main(int argc, char *argv[]) {
       DIR *dirp;
       struct dirent *dp;
       dirp = opendir(argv[1]);
+      chdir(argv[1]);
       if (dirp == NULL) {
         printf("opendir failed on '%s'", argv[1]);
       }
@@ -52,11 +55,15 @@ int main(int argc, char *argv[]) {
           
           if(strstr(dp->d_name,".jobs")!=NULL){
             
-            printf("%s\n", dp->d_name);
+            int file;
+            file =open(dp->d_name,O_RDONLY);
+            if (file == -1)
+                printf("error opening file %s", argv[1]);
+            executeCommand(file);
 
-          }
-          
-          /*printf("%s\n", dp->d_name);*/
+            if (close(file) == -1)
+              printf("close input");
+            }
         }
       }
     }
@@ -80,7 +87,7 @@ int executeCommand(int command){
     
   size_t num_rows, num_columns, num_coords;
   size_t xs[MAX_RESERVATION_SIZE], ys[MAX_RESERVATION_SIZE];
-
+  
   switch (get_next(command)) {
       case CMD_CREATE:
         if (parse_create(command, &event_id, &num_rows, &num_columns) != 0) {
@@ -188,4 +195,13 @@ char * removeSubStr(char * str, char *substr){
     return str;
 }
 
-
+void removeChar(char *str, char c) {
+    long unsigned int i, j;
+    long unsigned int len = strlen(str);
+    for (i = j = 0; i < len; i++) {
+        if (str[i] != c) {
+            str[j++] = str[i];
+        }
+    }
+    str[j] = '\0';
+}

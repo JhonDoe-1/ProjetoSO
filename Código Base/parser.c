@@ -4,12 +4,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
+#include <stdio.h>
 #include "constants.h"
 
 static int read_uint(int fd, unsigned int *value, char *next) {
   char buf[16];
-
+  
   int i = 0;
   while (1) {
     if (read(fd, buf + i, 1) == 0) {
@@ -49,7 +49,7 @@ enum Command get_next(int fd) {
   if (read(fd, buf, 1) != 1) {
     return EOC;
   }
-
+  
   switch (buf[0]) {
     case 'C':
       if (read(fd, buf + 1, 6) != 6 || strncmp(buf, "CREATE ", 7) != 0) {
@@ -137,7 +137,6 @@ enum Command get_next(int fd) {
 
 int parse_create(int fd, unsigned int *event_id, size_t *num_rows, size_t *num_cols) {
   char ch;
-
   if (read_uint(fd, event_id, &ch) != 0 || ch != ' ') {
     cleanup(fd);
     return 1;
