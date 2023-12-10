@@ -28,7 +28,6 @@ int main(int argc, char *argv[]) {
     */
     state_access_delay_ms = (unsigned int)delay;
 
-
   }
 
   if (ems_init(state_access_delay_ms)) {
@@ -42,11 +41,9 @@ int main(int argc, char *argv[]) {
       dirp = opendir(argv[1]);
       if (dirp == NULL) {
         printf("opendir failed on '%s'", argv[1]);
-        /*return;*/
       }
       else{
         for (;;) {
-          /*errno = 0;  To distinguish error from end-of-directory */
           dp = readdir(dirp);
           if (dp == NULL)
             break;
@@ -54,21 +51,9 @@ int main(int argc, char *argv[]) {
             continue; /* Skip . and .. */
           
           if(strstr(dp->d_name,".jobs")!=NULL){
-            int outfile,file;
-            char * outputName=strcat(removeSubStr(dp->d_name,".jobs"),".out");
-            outfile=open(outputName,O_WRONLY | O_CREAT, 0644);
-            file=open(dp->d_name, O_RDONLY);
-            if (outfile == -1) {
-              perror("open failed");
-              exit(1);
-            }
-            if (dup2(outfile, 1) == -1) {
-              perror("dup2 failed"); 
-              exit(1);
-            }
-            executeCommand(file);
-            close(outfile);
             
+            printf("%s\n", dp->d_name);
+
           }
           
           /*printf("%s\n", dp->d_name);*/
