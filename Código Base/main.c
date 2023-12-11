@@ -6,6 +6,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 
 #include "constants.h"
 #include "operations.h"
@@ -38,66 +39,6 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  if (argc > 2) {
-    /**
-     * Estamos a verificar se além do nome do programa, há pelo menos dois argumentos adicionais: "jobs" e um valor para MAX_PROC.
-    */
-    int max_proc = atoi(argv[2]);
-
-    int active_children = 0;
-    DIR *dirp;
-    struct dirent *dp;
-
-    if (strcmp(argv[1], "jobs") == 0) {
-      dirp = opendir(argv[1]);
-      chdir(argv[1]);
-
-      if (dirp == NULL) {
-        fprintf(stderr, "opendir failed on '%s'\n", argv[1]);
-        return 1;
-      }
-
-      while ((dp = readdir(dirp)) != NULL) {
-        // Processamento dos arquivos .jobs
-        if (strcmp(dp->d_name, ".") == 0 || strcmp(dp->d_name, "..") == 0)
-          continue;
-
-        if (strstr(dp->d_name, ".jobs") != NULL) {
-          if (active_children >= max_proc) {
-            wait(NULL); // Espera que um dos filhos termine
-            active_children--;
-          }
-
-          pid_t pid = fork();
-
-          if (pid == 0) {
-          // Processo filho
-          executaFicheiro(dp);
-          exit(0);
-          } 
-
-          else if (pid > 0) {
-            // Processo pai
-            active_children++;
-          }
-
-          else {
-            perror("fork");
-            exit(1);
-          }
-
-        }
-      }
-
-      closedir(dirp);
-
-      // Esperar todos os filhos terminarem
-      while (active_children > 0) {
-        wait(NULL);
-        active_children--;
-      }
-    }
-  } 
 
   if (argc > 1) {
     if (strcmp(argv[1],"jobs") == 0) {
@@ -109,23 +50,81 @@ int main(int argc, char *argv[]) {
       if (dirp == NULL) {
         printf("opendir failed on '%s'\n", argv[1]);
       }
+
       else{
-        for (;;) {
-          /* Lê o dp igual ao primeiro ficheiro do diretório */
-          dp = readdir(dirp);
-          if (dp == NULL)
-            break;
 
-          /* se o nome do ficheiro for "." ou ".." salta */
-          if (strcmp(dp->d_name, ".") == 0 || strcmp(dp->d_name, "..") == 0)
-            continue; /* Skip . and .. */
+        if (argc > 2) {
+          /**
+          * Estamos a verificar se além do nome do programa, há pelo menos dois argumentos adicionais: "jobs" e um valor para MAX_PROC.
+          */
+          int max_proc = atoi(argv[2]);
 
-          /* se o nome do ficheiro tiver extensão ".jobs" */
-          if(strstr(dp->d_name,".jobs") != NULL)
-            executaFicheiro(dp);
+          int active_children = 0;
+
+            while ((dp = readdir(dirp)) != NULL) {
+              // Processamento dos arquivos .jobs
+              if (strcmp(dp->d_name, ".") == 0 || strcmp(dp->d_name, "..") == 0)
+                continue;
+
+              if (strstr(dp->d_name, ".jobs") != NULL) {
+                if (active_children >= max_proc) {
+                  wait(NULL); // Espera que um dos filhos termine
+                  active_children--;
+                }
+
+                pid_t pid = fork();
+
+                if (pid == 0) {
+                // Processo filho
+                executaFicheiro(dp);
+                exit(0);
+                } 
+
+                else if (pid > 0) {
+                  // Processo pai
+                  active_children++;
+                }
+
+                else {
+                  perror("fork");
+                  exit(1);
+                }
+
+              }
+            }
+
+            closedir(dirp);
+
+            // Esperar todos os filhos terminarem
+            while (active_children > 0) {
+              wait(NULL);
+              active_children--;
+            }
+          }
+        
+
+
+        else{
+          for (;;) {
+            /* Lê o dp igual ao primeiro ficheiro da diretoria */
+            dp = readdir(dirp);
+            if (dp == NULL)
+              break;
+
+            /* se o nome do ficheiro for "." ou ".." salta */
+            if (strcmp(dp->d_name, ".") == 0 || strcmp(dp->d_name, "..") == 0)
+              continue; /* Skip . and .. */
+
+            /* se o nome do ficheiro tiver extensão ".jobs" */
+            if(strstr(dp->d_name,".jobs") != NULL)
+              executaFicheiro(dp);
+          }
         }
+
+
       }
     }
+
   }
 
   while (i == 1) {
@@ -139,6 +138,9 @@ int main(int argc, char *argv[]) {
     }
   }
 }
+
+
+
 
 int executeCommand(int command){
   unsigned int event_id, delay;
