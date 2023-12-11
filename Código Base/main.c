@@ -61,46 +61,44 @@ int main(int argc, char *argv[]) {
 
           int active_children = 0;
 
-            while ((dp = readdir(dirp)) != NULL) {
-              // Processamento dos arquivos .jobs
-              if (strcmp(dp->d_name, ".") == 0 || strcmp(dp->d_name, "..") == 0)
-                continue;
+          while ((dp = readdir(dirp)) != NULL) {
+             // Processamento dos arquivos .jobs
+            if (strcmp(dp->d_name, ".") == 0 || strcmp(dp->d_name, "..") == 0)
+              continue;
 
-              if (strstr(dp->d_name, ".jobs") != NULL) {
-                if (active_children >= max_proc) {
-                  wait(NULL); // Espera que um dos filhos termine
-                  active_children--;
-                }
+            if (strstr(dp->d_name, ".jobs") != NULL) {
+              if (active_children >= max_proc) {
+                wait(NULL); // Espera que um dos filhos termine
+                active_children--;
+              }
 
-                pid_t pid = fork();
+              pid_t pid = fork();
 
-                if (pid == 0) {
+              if (pid == 0) {
                 // Processo filho
                 executaFicheiro(dp);
                 exit(0);
                 } 
 
-                else if (pid > 0) {
-                  // Processo pai
-                  active_children++;
-                }
-
-                else {
-                  perror("fork");
-                  exit(1);
-                }
-
+              else if (pid > 0) {
+                // Processo pai
+                active_children++;
               }
-            }
 
-            closedir(dirp);
+              else {
+                perror("fork");
+                exit(1);
+              }
 
-            // Esperar todos os filhos terminarem
-            while (active_children > 0) {
-              wait(NULL);
-              active_children--;
             }
           }
+
+          // Esperar todos os filhos terminarem
+          while (active_children > 0) {
+            wait(NULL);
+            active_children--;
+          }
+        }
         
 
 
@@ -119,8 +117,10 @@ int main(int argc, char *argv[]) {
             if(strstr(dp->d_name,".jobs") != NULL)
               executaFicheiro(dp);
           }
-        }
 
+        }
+        chdir("..");
+        closedir(dirp);
 
       }
     }
