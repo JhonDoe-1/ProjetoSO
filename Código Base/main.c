@@ -17,7 +17,9 @@ void executaFicheiro(struct dirent *dp);
 
 int main(int argc, char *argv[]) {
   unsigned int state_access_delay_ms = STATE_ACCESS_DELAY_MS;
-  int i=1;;
+  int i = 1;
+  //int max_proc = MAX_PROC; // Número máximo de processos filhos que podem estar ativos ao mesmo tempo
+
   if (argc > 1) {
     char *endptr;
     unsigned long int delay = strtoul(argv[1], &endptr, 10);
@@ -35,47 +37,108 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Failed to initialize EMS\n");
     return 1;
   }
-  if(argc>1){
-    if(strcmp(argv[1],"jobs")==0){
+
+  if (argc > 2) {
+    /**
+     * Estamos a verificar se além do nome do programa, há pelo menos dois argumentos adicionais: "jobs" e um valor para MAX_PROC.
+    */
+    int max_proc = atoi(argv[2]);
+
+    int active_children = 0;
+    DIR *dirp;
+    struct dirent *dp;
+
+    if (strcmp(argv[1], "jobs") == 0) {
+      dirp = opendir(argv[1]);
+      chdir(argv[1]);
+
+      if (dirp == NULL) {
+        fprintf(stderr, "opendir failed on '%s'\n", argv[1]);
+        return 1;
+      }
+
+      while ((dp = readdir(dirp)) != NULL) {
+        // Processamento dos arquivos .jobs
+        if (strcmp(dp->d_name, ".") == 0 || strcmp(dp->d_name, "..") == 0)
+          continue;
+
+        if (strstr(dp->d_name, ".jobs") != NULL) {
+          if (active_children >= max_proc) {
+            wait(NULL); // Espera que um dos filhos termine
+            active_children--;
+          }
+
+          pid_t pid = fork();
+
+          if (pid == 0) {
+          // Processo filho
+          executaFicheiro(dp);
+          exit(0);
+          } 
+
+          else if (pid > 0) {
+            // Processo pai
+            active_children++;
+          }
+
+          else {
+            perror("fork");
+            exit(1);
+          }
+
+        }
+      }
+
+      closedir(dirp);
+
+      // Esperar todos os filhos terminarem
+      while (active_children > 0) {
+        wait(NULL);
+        active_children--;
+      }
+    }
+  } 
+
+  if (argc > 1) {
+    if (strcmp(argv[1],"jobs") == 0) {
       DIR *dirp;
       struct dirent *dp;
       dirp = opendir(argv[1]);
       chdir(argv[1]);
+
       if (dirp == NULL) {
-        printf("opendir failed on '%s'", argv[1]);
+        printf("opendir failed on '%s'\n", argv[1]);
       }
       else{
         for (;;) {
-          /*Lê o dp igual ao primeiro ficheiro do diretório*/
+          /* Lê o dp igual ao primeiro ficheiro do diretório */
           dp = readdir(dirp);
           if (dp == NULL)
             break;
-          /*se o nome do ficheiro for "." ou ".." salta*/
+
+          /* se o nome do ficheiro for "." ou ".." salta */
           if (strcmp(dp->d_name, ".") == 0 || strcmp(dp->d_name, "..") == 0)
             continue; /* Skip . and .. */
 
-          /*se o nome do ficheiro tiver extensão ".jobs" */
-          if(strstr(dp->d_name,".jobs")!=NULL){
+          /* se o nome do ficheiro tiver extensão ".jobs" */
+          if(strstr(dp->d_name,".jobs") != NULL)
             executaFicheiro(dp);
-          }
-            
         }
       }
     }
   }
-  while (i==1) {
+
+  while (i == 1) {
     
     printf("> ");
     fflush(stdout);
 
-    i=executeCommand(STDIN_FILENO);
-    if(i==0){
+    i = executeCommand(STDIN_FILENO);
+    if(i == 0){
       return 0;
     }
   }
 }
-
-
 
 int executeCommand(int command){
   unsigned int event_id, delay;
@@ -170,8 +233,6 @@ int executeCommand(int command){
     return 0;
 }
 
-
-
 void removeSubStr(char str[]){
     int i=0;
     while(str[i]!='.'){
@@ -187,7 +248,7 @@ void removeSubStr(char str[]){
 
 void executaFicheiro(struct dirent *dp){
   /*outputname é o nome do ficheiro output a ser criado*/
-  char outputname[strlen(dp->d_name)+1];
+  char outputname[strlen(dp->d_name) + 1];
   strcpy(outputname,dp->d_name);
   removeSubStr(outputname);
   strcat(outputname,".out");
@@ -195,20 +256,20 @@ void executaFicheiro(struct dirent *dp){
   int file,outfile, fd;
 
   /*cria um ficheiro de nom outname para o file descriptor outfile*/
-  outfile=open(outputname,O_WRONLY | O_CREAT, 0644);
+  outfile = open(outputname,O_WRONLY | O_CREAT, 0644);
   if (outfile == -1) {
     perror("open failed");
     exit(1);
   }
 
   /*abre o ficheiro dp*/
-  file =open(dp->d_name,O_RDONLY);
+  file = open(dp->d_name,O_RDONLY);
   if (file == -1)
      printf("error opening file %s", dp->d_name);
   /** fd=dub(1) cria um novo file descriptor  que é basicamente um ponteiro para o ficheiro stdout "1"
   preciseide fazer isto porque tive que alterar momentaneamente o ficheiro de output (em ve de se no terminal "1" passará a ser no ficheiro criado)
   */
-  fd=dup(1);
+  fd = dup(1);
   if (fd == -1) {
     perror("dup failed"); 
     exit(1);
