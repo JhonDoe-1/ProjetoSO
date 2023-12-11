@@ -47,6 +47,14 @@ static void cleanup(int fd) {
 enum Command get_next(int fd) {
   char buf[16];
   if (read(fd, buf, 1) != 1) {
+    if(read(fd, buf, 1)==0){
+      /*printf("estou aqui\n");*/
+      if(lseek(fd,0,SEEK_END)==-1){
+        printf("failure\n");
+      }
+      
+      return CMD_EMPTY;
+    }
     return EOC;
   }
   

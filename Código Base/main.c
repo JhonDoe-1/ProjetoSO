@@ -12,7 +12,7 @@
 #include "parser.h"
 
 int executeCommand(int command);
-char * removeSubStr(char * str,char * substr);
+void removeSubStr(char str[]);
 int executeCommandFILE(int command);
 void removeChar(char *str, char c);
 
@@ -54,16 +54,53 @@ int main(int argc, char *argv[]) {
             continue; /* Skip . and .. */
           
           if(strstr(dp->d_name,".jobs")!=NULL){
+            char outputname[strlen(dp->d_name)+1];
+            strcpy(outputname,dp->d_name);
+            removeSubStr(outputname);
             
-            int file;
+            strcat(outputname,".out");
+
+            int file,outfile, fd;
+
+            outfile=open(outputname,O_WRONLY | O_CREAT, 0644);
+            if (outfile == -1) {
+              perror("open failed");
+              exit(1);
+            }
+
             file =open(dp->d_name,O_RDONLY);
             if (file == -1)
-                printf("error opening file %s", argv[1]);
-            executeCommand(file);
+              printf("error opening file %s", argv[1]);
+            fd=dup(1);
+            if (fd == -1) {
+              perror("dup failed"); 
+              exit(1);
+            }
+            if (dup2(outfile, 1) == -1) {
+              perror("dup2 failed"); 
+              exit(1);
+            }
+            long int size=lseek(file,0,SEEK_END);
+
+            lseek(file,0,SEEK_SET );
+
+            while(lseek(file,0,SEEK_CUR) != size){
+              executeCommand(file);
+            }
+            lseek(file,0,SEEK_SET);
 
             if (close(file) == -1)
               printf("close input");
+            if (close(outfile) == -1)
+              printf("close input");
+            fflush(stdout);
+            if (dup2(fd, 1) == -1) {
+              perror("dup2 failed"); 
+              exit(1);
             }
+          }
+            
+            
         }
       }
     }
@@ -175,24 +212,19 @@ int executeCommand(int command){
     return 0;
 }
 
-char * removeSubStr(char * str, char *substr){
-    char *scan_p, *temp_p;
-    int subStrSize = 5;
-    if (str == NULL){
-        return 0;
+
+
+void removeSubStr(char str[]){
+    int i=0;
+    while(str[i]!='.'){
+      i++;
     }
-    else if (substr == NULL){
-        return str;
-    }
-    else if (strlen(substr)> strlen(str)){
-        return str;
-    }
-    temp_p = str;
-    while((scan_p = strstr(temp_p,substr))){
-        temp_p = scan_p + subStrSize;
-        memmove(scan_p, temp_p, sizeof(temp_p)+1);
-    }
-    return str;
+    str[i+4]='\0';
+    str[i+3]='\0';
+    str[i+2]='\0';
+    str[i+1]='\0';
+    str[i]='\0';
+    
 }
 
 void removeChar(char *str, char c) {
@@ -205,3 +237,14 @@ void removeChar(char *str, char c) {
     }
     str[j] = '\0';
 }
+/*
+char *changeExtension(char *filename,char *extension){
+  char *temp="";
+  char *t;
+  t=filename;
+  while(*t!="."){
+    temp +=t;
+    t++;
+  }
+  temp+=extension;
+}*/
