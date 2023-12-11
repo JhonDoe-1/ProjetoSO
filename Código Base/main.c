@@ -13,6 +13,7 @@
 
 int executeCommand(int command);
 void removeSubStr(char str[]);
+void executaFicheiro(struct dirent *dp);
 
 int main(int argc, char *argv[]) {
   unsigned int state_access_delay_ms = STATE_ACCESS_DELAY_MS;
@@ -55,70 +56,8 @@ int main(int argc, char *argv[]) {
 
           /*se o nome do ficheiro tiver extensão ".jobs" */
           if(strstr(dp->d_name,".jobs")!=NULL){
-            /*outputname é o nome do ficheiro output a ser criado*/
-            char outputname[strlen(dp->d_name)+1];
-            strcpy(outputname,dp->d_name);
-            removeSubStr(outputname);
-            strcat(outputname,".out");
-            /*declaraçao dos file descriptores*/
-            int file,outfile, fd;
-
-            /*cria um ficheiro de nom outname para o file descriptor outfile*/
-            outfile=open(outputname,O_WRONLY | O_CREAT, 0644);
-            if (outfile == -1) {
-              perror("open failed");
-              exit(1);
-            }
-
-            /*abre o ficheiro dp*/
-            file =open(dp->d_name,O_RDONLY);
-            if (file == -1)
-              printf("error opening file %s", argv[1]);
-
-            /** fd=dub(1) cria um novo file descriptor  que é basicamente um ponteiro para o ficheiro stdout "1"
-            preciseide fazer isto porque tive que alterar momentaneamente o ficheiro de output (em ve de se no terminal "1" passará a ser no ficheiro criado)
-             */
-            fd=dup(1);
-            if (fd == -1) {
-              perror("dup failed"); 
-              exit(1);
-            }
-            /** dup2(outfile,1) altera o ficheiro de output (da terminal para outfile)*/
-            if (dup2(outfile, 1) == -1) {
-              perror("dup2 failed"); 
-              exit(1);
-            }
-
-            /*tamanho do ficheiro "file" a ser lido*/
-            long int size=lseek(file,0,SEEK_END);
-
-            /*coloca o cursor no inicio de "file"*/
-            lseek(file,0,SEEK_SET );
-
-            /*enquanto o cursor não chegar ao final */
-            while(lseek(file,0,SEEK_CUR) != size){
-              /*executa comandos*/
-              executeCommand(file);
-            }
-            /*reset do cursor (não sei se é necessário mas são 4am e o meu cérebro já não funciona bem)*/
-            lseek(file,0,SEEK_SET);
-
-            /*fecha os ficheiros*/
-            if (close(file) == -1)
-              printf("close input");
-            if (close(outfile) == -1)
-              printf("close input");
-            
-            /*não sei oq faz só sei que sem isto n funciona lol*/
-            fflush(stdout);
-
-            /*volta a alterar o ficheiro de output [de outfile (onde 1 está a apontar agora) para o stdout (onde fd está a apontar)] */
-            if (dup2(fd, 1) == -1) {
-              perror("dup2 failed"); 
-              exit(1);
-            }
+            executaFicheiro(dp);
           }
-            
             
         }
       }
@@ -246,3 +185,64 @@ void removeSubStr(char str[]){
     
 }
 
+void executaFicheiro(struct dirent *dp){
+  /*outputname é o nome do ficheiro output a ser criado*/
+  char outputname[strlen(dp->d_name)+1];
+  strcpy(outputname,dp->d_name);
+  removeSubStr(outputname);
+  strcat(outputname,".out");
+  /*declaraçao dos file descriptores*/
+  int file,outfile, fd;
+
+  /*cria um ficheiro de nom outname para o file descriptor outfile*/
+  outfile=open(outputname,O_WRONLY | O_CREAT, 0644);
+  if (outfile == -1) {
+    perror("open failed");
+    exit(1);
+  }
+
+  /*abre o ficheiro dp*/
+  file =open(dp->d_name,O_RDONLY);
+  if (file == -1)
+     printf("error opening file %s", dp->d_name);
+  /** fd=dub(1) cria um novo file descriptor  que é basicamente um ponteiro para o ficheiro stdout "1"
+  preciseide fazer isto porque tive que alterar momentaneamente o ficheiro de output (em ve de se no terminal "1" passará a ser no ficheiro criado)
+  */
+  fd=dup(1);
+  if (fd == -1) {
+    perror("dup failed"); 
+    exit(1);
+  }
+  /** dup2(outfile,1) altera o ficheiro de output (da terminal para outfile)*/
+  if (dup2(outfile, 1) == -1) {
+    perror("dup2 failed"); 
+    exit(1);
+  }
+
+  /*tamanho do ficheiro "file" a ser lido*/
+  long int size=lseek(file,0,SEEK_END);
+  /*coloca o cursor no inicio de "file"*/
+  lseek(file,0,SEEK_SET );
+  /*enquanto o cursor não chegar ao final */
+  while(lseek(file,0,SEEK_CUR) != size){
+  /*executa comandos*/
+    executeCommand(file);
+  }
+  /*reset do cursor (não sei se é necessário mas são 4am e o meu cérebro já não funciona bem)*/
+  lseek(file,0,SEEK_SET);
+
+  /*fecha os ficheiros*/
+  if (close(file) == -1)
+    printf("close input");
+  if (close(outfile) == -1)
+    printf("close input");
+            
+  /*não sei oq faz só sei que sem isto n funciona lol*/
+  fflush(stdout);
+
+  /*volta a alterar o ficheiro de output [de outfile (onde 1 está a apontar agora) para o stdout (onde fd está a apontar)] */
+  if (dup2(fd, 1) == -1) {
+    perror("dup2 failed"); 
+    exit(1);
+  }
+}
