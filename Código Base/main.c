@@ -15,6 +15,7 @@
 int executeCommand(int command);
 void removeSubStr(char str[]);
 void executaFicheiro(struct dirent *dp);
+void log_child_completion(pid_t child_pid, const char *file_processed);
 
 int main(int argc, char *argv[]) {
   unsigned int state_access_delay_ms = STATE_ACCESS_DELAY_MS;
@@ -51,15 +52,16 @@ int main(int argc, char *argv[]) {
         printf("opendir failed on '%s'\n", argv[1]);
       }
 
-      else{
+      else {
 
         if (argc > 2) {
           /**
           * Estamos a verificar se além do nome do programa, há pelo menos dois argumentos adicionais: "jobs" e um valor para MAX_PROC.
           */
           int max_proc = atoi(argv[2]);
-
           int active_children = 0;
+          pid_t child_pids[1024]; // Array para armazenar PIDs dos filhos
+          char file_names[1024][256]; // Array para armazenar nomes dos arquivos
 
           while ((dp = readdir(dirp)) != NULL) {
              // Processamento dos arquivos .jobs
@@ -82,6 +84,8 @@ int main(int argc, char *argv[]) {
 
               else if (pid > 0) {
                 // Processo pai
+                child_pids[active_children] = pid; // Armazenar o PID do filho
+                strcpy(file_names[active_children], dp->d_name); // Armazenar o nome do arquivo
                 active_children++;
               }
 
@@ -89,20 +93,26 @@ int main(int argc, char *argv[]) {
                 perror("fork");
                 exit(1);
               }
-
             }
           }
-
+          /*
           // Esperar todos os filhos terminarem
           while (active_children > 0) {
             wait(NULL);
             active_children--;
           }
+          */
+          // Esperar todos os filhos terminarem
+          for (int ix = 0; ix < active_children; ix++) {
+            pid_t completed_pid = waitpid(child_pids[ix], NULL, 0); // Espera pelo PID específico
+            /** usei waitpid em vez de wait para que possamos rastrear a conclusão de cada processo filho individualmente 
+             * e não apenas o primeiro processo filho que termina. 
+            */
+            log_child_completion(completed_pid, file_names[ix]); // Log do processo filho completado
+          }
         }
         
-
-
-        else{
+        else {
           for (;;) {
             /* Lê o dp igual ao primeiro ficheiro da diretoria */
             dp = readdir(dirp);
@@ -114,7 +124,7 @@ int main(int argc, char *argv[]) {
               continue; /* Skip . and .. */
 
             /* se o nome do ficheiro tiver extensão ".jobs" */
-            if(strstr(dp->d_name,".jobs") != NULL)
+            if (strstr(dp->d_name,".jobs") != NULL)
               executaFicheiro(dp);
           }
 
@@ -139,8 +149,10 @@ int main(int argc, char *argv[]) {
   }
 }
 
-
-
+/** Função responsável por imprimir uma mensagem indicando que um processo filho terminou de executar um arquivo específico */
+void log_child_completion(pid_t child_pid, const char *file_processed) {
+    printf("Processo filho com PID %d completou o processamento de '%s'\n", child_pid, file_processed);
+}
 
 int executeCommand(int command){
   unsigned int event_id, delay;
@@ -152,7 +164,6 @@ int executeCommand(int command){
       case CMD_CREATE:
         if (parse_create(command, &event_id, &num_rows, &num_columns) != 0) {
           fprintf(stderr, "Invalid command. See HELP for usage\n");
-          
         }
 
         if (ems_create(event_id, num_rows, num_columns)) {
@@ -166,7 +177,6 @@ int executeCommand(int command){
 
         if (num_coords == 0) {
           fprintf(stderr, "Invalid command. See HELP for usage\n");
-          
         }
 
         if (ems_reserve(event_id, num_coords, xs, ys)) {
@@ -178,7 +188,6 @@ int executeCommand(int command){
       case CMD_SHOW:
         if (parse_show(command, &event_id) != 0) {
           fprintf(stderr, "Invalid command. See HELP for usage\n");
-          
         }
 
         if (ems_show(event_id)) {
@@ -197,7 +206,6 @@ int executeCommand(int command){
       case CMD_WAIT:
         if (parse_wait(command, &delay, NULL) == -1) {  // thread_id is not implemented
           fprintf(stderr, "Invalid command. See HELP for usage\n");
-          
         }
 
         if (delay > 0) {
