@@ -72,3 +72,28 @@ struct Event* get_event(struct EventList* list, unsigned int event_id, struct Li
     current = current->next;
   }
 }
+
+struct Event* get_event_by_session(struct EventList* list, unsigned int session_id) {
+  /**
+   * Iterates through the list of events and returns the first event that matches the given session ID
+   * This change assumes that each event is associated with a single session
+  */
+  if (!list) return NULL;
+
+  // Lock the list for reading
+  pthread_rwlock_rdlock(&list->rwl);
+  struct ListNode* current = list->head;
+
+  while (current != NULL) {
+    if (current->event->session_id == session_id) {
+      // Unlock before returning
+      pthread_rwlock_unlock(&list->rwl);
+      return current->event;
+    }
+    current = current->next;
+  }
+
+  // Unlock the list as we didn't find the event
+  pthread_rwlock_unlock(&list->rwl);
+  return NULL;
+}

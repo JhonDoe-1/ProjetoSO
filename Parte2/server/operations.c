@@ -3,6 +3,8 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <pthread.h>
+#include <limits.h>
 
 #include "common/io.h"
 #include "eventlist.h"
@@ -281,3 +283,81 @@ int ems_list_events(int out_fd) {
   pthread_rwlock_unlock(&event_list->rwl);
   return 0;
 }
+
+// Mutex for thread-safe incrementing of the session ID
+pthread_mutex_t session_id_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+// Node structure for the session linked list
+typedef struct SessionNode {
+    int session_id;
+    char request_pipe[PATH_MAX];
+    char response_pipe[PATH_MAX];
+    struct SessionNode* next;
+} SessionNode;
+
+// Head of the sessions linked list
+SessionNode* sessions_head = NULL;
+
+// Mutex for thread-safe access to the sessions linked list
+pthread_mutex_t sessions_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+// Function to generate unique session IDs in a thread-safe manner
+/**
+ * Function is intended to produce a unique identifier for each new session started by a client 
+ * it increments a static integer variable to ensure each session ID is different from the last
+*/
+int generate_session_id() {
+    static int session_id = 0;
+    pthread_mutex_lock(&session_id_mutex);
+    int new_session_id = session_id++;
+    pthread_mutex_unlock(&session_id_mutex);
+    return new_session_id;
+}
+
+// Function to store session details in a thread-safe manner
+/**
+ * Function is designed to save the details of a client's session. 
+ * It takes the session ID and the paths to the client's named pipes for requests and responses
+ * These details would be stored in a linked list, with each node representing a session. 
+ * This list would be used to manage sessions and facilitate communication between the server and its clients.
+*/
+void store_session_details(int session_id, const char* request_pipe, const char* response_pipe) {
+    SessionNode* new_node = malloc(sizeof(SessionNode));
+    if (new_node == NULL) {
+      // Handle memory allocation failure
+      exit(EXIT_FAILURE);
+    }
+    new_node->session_id = session_id;
+    strncpy(new_node->request_pipe, request_pipe, PATH_MAX);
+    strncpy(new_node->response_pipe, response_pipe, PATH_MAX);
+    new_node->next = NULL;
+
+    pthread_mutex_lock(&sessions_mutex);
+    // Add the new node to the front of the linked list for simplicity
+    new_node->next = sessions_head;
+    sessions_head = new_node;
+    pthread_mutex_unlock(&sessions_mutex);
+}
+
+// ----------------------------------------------------------------------------------------------------------------------
+// !!!!! MAKE SURE that these two functions are called during the server shutdown process after all threads have been 
+// joined and no more sessions are active
+// function to free the memory allocated for the session linked list before the server shuts down.
+void free_sessions() {
+    pthread_mutex_lock(&sessions_mutex);
+    SessionNode* current = sessions_head;
+    while (current != NULL) {
+        SessionNode* temp = current;
+        current = current->next;
+        free(temp);
+    }
+    sessions_head = NULL;
+    pthread_mutex_unlock(&sessions_mutex);
+}
+
+// Function to clean up the mutexes
+void destroy_mutexes() {
+    pthread_mutex_destroy(&session_id_mutex);
+    pthread_mutex_destroy(&sessions_mutex);
+}
+// ----------------------------------------------------------------------------------------------------------------------
