@@ -8,6 +8,8 @@
 #include "common/constants.h"
 #include "common/io.h"
 #include "operations.h"
+#include "operations.c"
+
 
 #define MAX_SESSIONS 10  // Exemplo de limite de sessões
 
@@ -90,9 +92,13 @@ int main(int argc, char* argv[]) {
 
     char client_pipes[2][PATH_MAX];  // Array to hold client's request and response pipe names
 
+    session_message msg;
     // Read from the server's named pipe
     ssize_t num_read = read(server_fd, client_pipes, sizeof(client_pipes));
     if (num_read > 0) {
+      if (!process_message(&msg)) {
+        continue;  // Se a sessão foi encerrada, continua para a próxima iteração
+      }
       int session_id = generate_session_id();  // Generate new session ID
       store_session_details(session_id, client_pipes[0], client_pipes[1]); // Store session details
 
@@ -111,6 +117,7 @@ int main(int argc, char* argv[]) {
       close(client_response_fd);  // Close the client's response pipe
     } else if (num_read == 0) {
       // End of file, no data read, pipe was closed
+      release_session_id(/* session_id correspondente */);
       break;
     } else {
       // An error occurred

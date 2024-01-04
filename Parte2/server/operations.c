@@ -361,3 +361,10 @@ void destroy_mutexes() {
     pthread_mutex_destroy(&sessions_mutex);
 }
 // ----------------------------------------------------------------------------------------------------------------------
+
+// Estrutura para representar uma mensagem
+typedef struct {
+    int session_id;
+    char message_type;  // 'E' para fim de sessão, outros tipos conforme necessário
+    // Outros campos da mensagem...
+} session_message;
