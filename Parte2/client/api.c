@@ -45,19 +45,20 @@ int ems_setup(char const* req_pipe_path, char const* resp_pipe_path, char const*
     printf("Erro ao criar named pipes\n");
     return 1; // Retornar 1 em caso de erro
   }
-
+  
   // Abrir os pipes para leitura e escrita
-  req_pipe = open(req_pipe_path, O_WRONLY);
-  resp_pipe = open(resp_pipe_path, O_RDONLY);
+  //chdir("..");
+  //chdir("server");
   server_pipe = open(server_pipe_path, O_RDWR);
-
-  if (req_pipe == -1 || resp_pipe == -1 || server_pipe == -1) {
+  printf("Erro 3\n");
+  if (server_pipe == -1) {
     printf("Erro ao abrir os pipes\n");
     return 1; // Retornar 1 em caso de erro
   }
-  
+  printf("got here\n");
   sprintf(buf,"%s|%s|%s","OP_CODE=1|",req_pipe_path,resp_pipe_path);
   write(server_pipe,buf, TAMMSG);
+  resp_pipe = open(resp_pipe_path, O_RDONLY);
   read(resp_pipe,sessionID,sizeof(MAX_SESSION_COUNT));
 
   session_id= atoi(sessionID);
