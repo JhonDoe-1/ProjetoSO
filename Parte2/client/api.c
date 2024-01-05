@@ -7,7 +7,7 @@
 
 int requestPipeFd, responsePipeFd, serverPipeFd;
 
-// NOTA: Adapt the message formatting to match your servers expected protocol
+// NOTA: Adapt the message formatting to match the servers expected protocol
 
 int ems_setup(char const* req_pipe_path, char const* resp_pipe_path, char const* server_pipe_path) {
   //TODO: create pipes and connect to the server
