@@ -14,6 +14,7 @@
 #include "eventlist.h"
 #include <stdbool.h>
 
+
 #define MAX_SESSIONS 10  // Exemplo de limite de sessões
 
 void parseMsg(char buf[TAMMSG],char atribts[5][MAX_RESERVATION_SIZE]);
