@@ -1,17 +1,21 @@
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <fcntl.h> // Include this for O_RDONLY and other file control options
-#include <sys/stat.h> // Include this for mkfifo
-#include <stdbool.h>
+#include <unistd.h>
+#include <dirent.h>
+#include <string.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
 
 #include "common/constants.h"
-#include "common/io.h"
 #include "operations.h"
-#include "operations.c"
-
+#include <stdbool.h>
 
 #define MAX_SESSIONS 10  // Exemplo de limite de sessões
+
+void parseMsg(char buf[TAMMSG],char atribts[5][MAX_RESERVATION_SIZE]);
+void arrayXY(char *xys, size_t array[]);
 
 // Function to set up the named pipe and start the server
 int setup_named_pipe(const char *pipe_path) {
@@ -87,42 +91,99 @@ int main(int argc, char* argv[]) {
 
     // Se todas as sessões estiverem ativas, bloquear até que uma seja liberada
     while (generate_session_id() == -1) {
-      // Podemos adicionar um sleep aqui para evitar uso excessivo de CPU
+      // Pode adicionar um sleep aqui para evitar uso excessivo de CPU
     }
 
-    char client_pipes[2][PATH_MAX];  // Array to hold client's request and response pipe names
+    char buf[TAMMSG];
+    
+    char client_pipes[2][MAX_PATH_SIZE];  // Array to hold client's request and response pipe names
 
-    session_message msg;
+    //session_message msg;
     // Read from the server's named pipe
-    ssize_t num_read = read(server_fd, client_pipes, sizeof(client_pipes));
-    if (num_read > 0) {
-      if (!process_message(&msg)) {
-        continue;  // Se a sessão foi encerrada, continua para a próxima iteração
-      }
-      int session_id = generate_session_id();  // Generate new session ID
-      store_session_details(session_id, client_pipes[0], client_pipes[1]); // Store session details
+    ssize_t num_read = read(server_fd, buf, TAMMSG);
 
+    if (num_read > 0) {
+      char atribts[5][MAX_RESERVATION_SIZE];
+      parseMsg(buf,atribts);
+
+    
+      int session_id = generate_session_id();  // Generate new session ID
+
+      strcpy(client_pipes[0],atribts[1]);strcpy(client_pipes[1],atribts[2]);
+
+      store_session_details(session_id, client_pipes[0], client_pipes[1]); // Store session details
       // Open the client's response pipe and send the session ID
       int client_response_fd = open(client_pipes[1], O_WRONLY);
       if (client_response_fd < 0) {
         perror("open - client response pipe");
         continue;
       }
-
       // Send the session ID to the client
       if (write(client_response_fd, &session_id, sizeof(session_id)) < 0) {
         perror("write - session ID to client response pipe");
       }
+       
 
+      /*if (!process_message(&msg)) {
+        continue;  // Se a sessão foi encerrada, continua para a próxima iteração
+      }*/
       close(client_response_fd);  // Close the client's response pipe
-    } else if (num_read == 0) {
+    } /*else if (num_read == 0) {
       // End of file, no data read, pipe was closed
-      release_session_id(/* session_id correspondente */);
+      release_session_id();
       break;
-    } else {
+    }*/ else {
       // An error occurred
       perror("read");
       break;
+    }
+    SessionNode *temp=SessionList();
+    while(temp!=NULL){
+      int request_pipe=open(temp->request_pipe,O_RDONLY);
+      int response_pipe=open(temp->response_pipe,O_WRONLY);
+      char buffer[TAMMSG];
+      read(request_pipe,buffer,TAMMSG);
+      char buffer1[TAMMSG];
+      strcpy(buffer1,buffer);
+      char atribts[5][MAX_RESERVATION_SIZE];
+      parseMsg(buffer,atribts);
+
+      char ret_msg[TAMMSG];
+      switch(buffer1[8]){
+        case '2':
+          release_session_id(temp->session_id);
+          free_Session(temp->session_id);
+          break;
+        case '3':
+          ems_create((unsigned int) atoi(atribts[1]),(size_t) atoi(atribts[2]),(size_t) atoi(atribts[3]));
+          break;
+        case '4':
+          
+          size_t arrayX[MAX_RESERVATION_SIZE];
+          size_t arrayY[MAX_RESERVATION_SIZE];
+          arrayXY(atribts[3],arrayX);
+          arrayXY(atribts[4],arrayY);
+          ems_reserve((unsigned int)atoi(atribts[1]),(size_t)atoi(atribts[2]),arrayX,arrayY);
+          break;
+        case '5':
+          size_t rows;
+          size_t cols;
+          int event_id=atoi(atribts[1]);
+          rows=getRows(event_id);
+          cols=getCols(event_id);
+          sprintf(ret_msg,"%d|%ld|%ld|",1,rows,cols);
+          write(response_pipe,ret_msg,TAMMSG);
+          ems_show(response_pipe,(unsigned int)event_id);
+          break;
+        case '6':
+          size_t numEvents=getNumEvents();
+          sprintf(ret_msg,"%d|%ld|",1,numEvents);
+          write(response_pipe,ret_msg,TAMMSG);
+          ems_list_events(response_pipe);
+          break;
+      }
+
+      temp=temp->next;
     }
   }
 
@@ -133,4 +194,44 @@ int main(int argc, char* argv[]) {
 
   ems_terminate();
   return 0;
+}
+
+void parseMsg(char buf[TAMMSG],char atribts[5][MAX_RESERVATION_SIZE]){
+    int i=0;
+    // Extract the first token
+    char * token = strtok(buf, "|");
+    strcpy(atribts[i],token);
+    i++;
+  // loop through the string to extract all other tokens
+    while( token != NULL ) {
+         //printing each token
+        token = strtok(NULL, "|");
+        if(token != NULL)
+            strcpy(atribts[i],token);
+        i++;
+    }
+}
+
+void arrayXY(char *xys, size_t array[]){
+
+  int i=0;
+  int t=0;
+  char container[MAX_RESERVATION_SIZE]="";
+  int len=(int)strlen(xys);
+  while(i<len){
+    if(xys[i]=='[' ||xys[i]==']' ||xys[i]==' '  ){
+      if(i!=0){
+        if(t<5){
+        array[t]=(size_t)atoi(container);
+        if(t<5)
+        t++;
+        strcpy(container,"\0");}
+      }
+    }
+    else
+      strcat(container,&xys[i]);
+    i++;
+  }
+  return;
+  
 }

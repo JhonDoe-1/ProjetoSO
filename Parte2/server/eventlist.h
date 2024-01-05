@@ -6,7 +6,6 @@
 
 struct Event {
   unsigned int id;            /// Event id
-  unsigned int session_id;    // Session id
   unsigned int reservations;  /// Number of reservations for the event.
 
   size_t cols;  /// Number of columns.
@@ -50,11 +49,5 @@ void free_list(struct EventList* list);
 /// @param to Last node to be searched.
 /// @return Pointer to the event if found, NULL otherwise.
 struct Event* get_event(struct EventList* list, unsigned int event_id, struct ListNode* from, struct ListNode* to);
-
-// Retrieves an event in the list by session_id.
-// @param list Event list to be searched
-// @param session_id Session id.
-// @return Pointer to the event if found, NULL otherwise.
-struct Event* get_event_by_session(struct EventList* list, unsigned int session_id);
 
 #endif  // SERVER_EVENT_LIST_H

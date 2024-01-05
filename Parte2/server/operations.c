@@ -5,9 +5,11 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <limits.h>
+#include <stdbool.h>
 
 #include "common/io.h"
 #include "eventlist.h"
+#include "operations.h"
 
 static struct EventList* event_list = NULL;
 static unsigned int state_access_delay_us = 0;
@@ -287,13 +289,7 @@ int ems_list_events(int out_fd) {
 // Mutex for thread-safe incrementing of the session ID
 pthread_mutex_t session_id_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-// Node structure for the session linked list
-typedef struct SessionNode {
-    int session_id;
-    char request_pipe[PATH_MAX];
-    char response_pipe[PATH_MAX];
-    struct SessionNode* next;
-} SessionNode;
+
 
 // Head of the sessions linked list
 SessionNode* sessions_head = NULL;
@@ -306,13 +302,14 @@ pthread_mutex_t sessions_mutex = PTHREAD_MUTEX_INITIALIZER;
  * Function is intended to produce a unique identifier for each new session started by a client 
  * it increments a static integer variable to ensure each session ID is different from the last
 */
-int generate_session_id() {
+
+/*int generate_session_id() {
     static int session_id = 0;
     pthread_mutex_lock(&session_id_mutex);
     int new_session_id = session_id++;
     pthread_mutex_unlock(&session_id_mutex);
     return new_session_id;
-}
+}*/
 
 // Function to store session details in a thread-safe manner
 /**
@@ -354,11 +351,47 @@ void free_sessions() {
     sessions_head = NULL;
     pthread_mutex_unlock(&sessions_mutex);
 }
+void free_Session(int id){
+  SessionNode* current = sessions_head;
+  while (current != NULL) {
+    current = current->next;
+    if(current->next!=NULL && current->next->session_id==id){
+      SessionNode* temp = current->next;
+      current->next=temp->next;
+      free(temp);
+      break;
+    }
+    
+  }
+}
+
+SessionNode *SessionList(){
+  return sessions_head;
+}
+
 
 // Function to clean up the mutexes
 void destroy_mutexes() {
     pthread_mutex_destroy(&session_id_mutex);
     pthread_mutex_destroy(&sessions_mutex);
+}
+size_t getRows(int event_id){
+  struct Event* event= get_event(event_list,(unsigned int) event_id, event_list->head, event_list->tail);
+  return event->rows;
+}
+size_t getCols(int event_id){
+  struct Event* event= get_event(event_list,(unsigned int) event_id, event_list->head, event_list->tail);
+  return event->cols;
+}
+size_t getNumEvents(){
+  struct ListNode *temp;
+  size_t numEvents=0;
+  temp= event_list->head;
+  while(temp!=NULL){
+    temp=temp->next;
+    numEvents++;
+  }
+  return numEvents;
 }
 // ----------------------------------------------------------------------------------------------------------------------
 

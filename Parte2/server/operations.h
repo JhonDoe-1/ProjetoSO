@@ -3,6 +3,15 @@
 
 #include <stddef.h>
 
+
+// Node structure for the session linked list
+typedef struct SessionNode {
+    int session_id;
+    char request_pipe[PATH_MAX];
+    char response_pipe[PATH_MAX];
+    struct SessionNode* next;
+} SessionNode;
+
 /// Initializes the EMS state.
 /// @param delay_us Delay in microseconds.
 /// @return 0 if the EMS state was initialized successfully, 1 otherwise.
@@ -36,5 +45,22 @@ int ems_show(int out_fd, unsigned int event_id);
 /// @param out_fd File descriptor to print the events to.
 /// @return 0 if the events were printed successfully, 1 otherwise.
 int ems_list_events(int out_fd);
+
+void store_session_details(int session_id, const char* request_pipe, const char* response_pipe);
+
+void free_sessions();
+
+void free_Session(int id);
+
+void destroy_mutexes();
+
+SessionNode *SessionList();
+
+size_t getRows(int event_id);
+
+size_t getCols(int event_id);
+
+size_t getNumEvents();
+
 
 #endif  // SERVER_OPERATIONS_H
