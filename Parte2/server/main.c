@@ -87,7 +87,7 @@ int main(int argc, char* argv[]) {
 
     // Se todas as sessões estiverem ativas, bloquear até que uma seja liberada
     while (generate_session_id() == -1) {
-      // Pode adicionar um sleep aqui para evitar uso excessivo de CPU
+      // Podemos adicionar um sleep aqui para evitar uso excessivo de CPU
     }
 
     char client_pipes[2][PATH_MAX];  // Array to hold client's request and response pipe names

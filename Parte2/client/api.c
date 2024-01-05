@@ -64,7 +64,7 @@ int ems_reserve(unsigned int event_id, size_t num_seats, size_t* xs, size_t* ys)
   // ---------------------------------------------------------------
   // Prepare the reserve request message
   char message[200];
-  sprintf(message, "Reserve Event: %u, Seats: %zu", event_id, num_seats);
+  sprintf(message, "Reserve Event: %u, Seats: %zu", event_id, num_seats); 
   // Include xs, ys in the message if needed
 
   // Write the message to the request pipe
