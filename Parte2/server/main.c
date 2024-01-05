@@ -7,9 +7,11 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <signal.h>
 
-#include "common/constants.h"
+#include "../common/constants.h"
 #include "operations.h"
+#include "eventlist.h"
 #include <stdbool.h>
 
 #define MAX_SESSIONS 10  // Exemplo de limite de sessões
@@ -48,11 +50,46 @@ void release_session_id(int session_id) {
     }
 }
 
+// ---------------------- EX2 ----------------------------
+// Define the global flag and the signal handler
+volatile sig_atomic_t sigusr1_flag = 0;
+
+void sigusr1_handler(int signum) {
+    sigusr1_flag = 1;
+}
+
+void showEvents() {
+  // Assuming you have a function to get the first event in your list
+  Event *event = getFirstEvent();
+  while (event != NULL) {
+    printf("Event ID: %d, Name: %s\n", event->id, event->name);
+    // Assuming you have a function to print the state of seats for an event
+    printSeatStates(event);
+    event = event->next;  // Move to the next event in the list
+  }
+}
+
+void printSeatStates(Event *event) {
+  // Iterate through the seats of the event and print their states
+  for (int i = 0; i < event->numSeats; ++i) {
+    printf("Seat %d: %s\n", i, (event->seats[i].isReserved ? "Reserved" : "Available"));
+  }
+}
+// -------------------------------------------------------
+
 int main(int argc, char* argv[]) {
   if (argc < 2 || argc > 3) {
     fprintf(stderr, "Usage: %s\n <pipe_path> [delay]\n", argv[0]);
     return 1;
   }
+
+  // ---------------------------- EX2 -------------------------------------
+  // Registering the SIGUSR1 signal handler before creating any threads
+  struct sigaction sa;
+  memset(&sa, 0, sizeof(sa));
+  sa.sa_handler = sigusr1_handler;
+  sigaction(SIGUSR1, &sa, NULL);
+  // ----------------------------------------------------------------------
 
   char* endptr;
   unsigned int state_access_delay_us = STATE_ACCESS_DELAY_US;
@@ -88,6 +125,11 @@ int main(int argc, char* argv[]) {
   while (1) {
     //TODO: Read from pipe
     //TODO: Write new client to the producer-consumer buffer
+
+    if (sigusr1_flag) {
+      showEvents();
+      sigusr1_flag = 0;
+    }
 
     // Se todas as sessões estiverem ativas, bloquear até que uma seja liberada
     while (generate_session_id() == -1) {
