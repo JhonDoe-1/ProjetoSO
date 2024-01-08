@@ -18,8 +18,9 @@ int main(int argc, char* argv[]) {
     fprintf(stderr, "Failed to set up EMS\n");
     return 1;
   }
-
+  
   const char* dot = strrchr(argv[4], '.');
+  
   if (dot == NULL || dot == argv[4] || strlen(dot) != 5 || strcmp(dot, ".jobs") ||
       strlen(argv[4]) > MAX_JOB_FILE_NAME_SIZE) {
     fprintf(stderr, "The provided .jobs file path is not valid. Path: %s\n", argv[1]);
@@ -51,7 +52,7 @@ int main(int argc, char* argv[]) {
     switch (get_next(in_fd)) {
       case CMD_CREATE:
         if (parse_create(in_fd, &event_id, &num_rows, &num_columns) != 0) {
-          fprintf(stderr, "Invalid command. See HELP for usage\n");
+          fprintf(stderr, "Invalid command creation. See HELP for usage\n");
           continue;
         }
 
@@ -62,7 +63,7 @@ int main(int argc, char* argv[]) {
         num_coords = parse_reserve(in_fd, MAX_RESERVATION_SIZE, &event_id, xs, ys);
 
         if (num_coords == 0) {
-          fprintf(stderr, "Invalid command. See HELP for usage\n");
+          fprintf(stderr, "Invalid command reserve. See HELP for usage\n");
           continue;
         }
 
@@ -71,7 +72,7 @@ int main(int argc, char* argv[]) {
 
       case CMD_SHOW:
         if (parse_show(in_fd, &event_id) != 0) {
-          fprintf(stderr, "Invalid command. See HELP for usage\n");
+          fprintf(stderr, "Invalid command show. See HELP for usage\n");
           continue;
         }
 

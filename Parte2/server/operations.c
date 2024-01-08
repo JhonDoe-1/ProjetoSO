@@ -303,13 +303,6 @@ pthread_mutex_t sessions_mutex = PTHREAD_MUTEX_INITIALIZER;
  * it increments a static integer variable to ensure each session ID is different from the last
 */
 
-/*int generate_session_id() {
-    static int session_id = 0;
-    pthread_mutex_lock(&session_id_mutex);
-    int new_session_id = session_id++;
-    pthread_mutex_unlock(&session_id_mutex);
-    return new_session_id;
-}*/
 
 // Function to store session details in a thread-safe manner
 /**
@@ -318,18 +311,24 @@ pthread_mutex_t sessions_mutex = PTHREAD_MUTEX_INITIALIZER;
  * These details would be stored in a linked list, with each node representing a session. 
  * This list would be used to manage sessions and facilitate communication between the server and its clients.
 */
+
+struct Event *getFirstEvent(){
+  return event_list->head;
+}
+
 void store_session_details(int session_id, const char* request_pipe, const char* response_pipe) {
+  pthread_mutex_lock(&sessions_mutex);
     SessionNode* new_node = malloc(sizeof(SessionNode));
     if (new_node == NULL) {
       // Handle memory allocation failure
       exit(EXIT_FAILURE);
     }
     new_node->session_id = session_id;
-    strncpy(new_node->request_pipe, request_pipe, PATH_MAX);
-    strncpy(new_node->response_pipe, response_pipe, PATH_MAX);
+    strcpy(new_node->request_pipe, request_pipe);
+    strcpy(new_node->response_pipe, response_pipe);
     new_node->next = NULL;
 
-    pthread_mutex_lock(&sessions_mutex);
+    
     // Add the new node to the front of the linked list for simplicity
     new_node->next = sessions_head;
     sessions_head = new_node;
@@ -396,8 +395,8 @@ size_t getNumEvents(){
 // ----------------------------------------------------------------------------------------------------------------------
 
 // Estrutura para representar uma mensagem
-typedef struct {
+/*typedef struct {
     int session_id;
     char message_type;  // 'E' para fim de sessão, outros tipos conforme necessário
     // Outros campos da mensagem...
-} session_message;
+} session_message;*/

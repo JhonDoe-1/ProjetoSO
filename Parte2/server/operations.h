@@ -62,5 +62,7 @@ size_t getCols(int event_id);
 
 size_t getNumEvents();
 
+struct Event *getFirstEvent();
+
 
 #endif  // SERVER_OPERATIONS_H
